@@ -1,233 +1,165 @@
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUREAU PARIS EFOOTBALL</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial }
+  body { background:#000; color:#fff; padding-bottom:80px }
+  .header { background:linear-gradient(90deg, #FFD700, #B8860B); padding:15px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; color:#000 }
+  .btn { padding:12px; border:none; border-radius:10px; cursor:pointer; font-weight:bold; width:100%; margin:5px 0; font-size:16px }
+  .btn-yellow { background:#FFD700; color:#000 }
+  .btn-green { background:#00FF00; color:#000 }
+  .btn-red { background:#FF0000; color:#fff }
+  .btn-blue { background:#00AEEF; color:#fff }
+  .card { background:#111; border:2px solid #FFD700; border-radius:15px; padding:15px; margin:15px }
+  input { padding:12px; width:100%; margin:8px 0; border-radius:8px; border:1px solid #333; background:#222; color:#fff; font-size:16px }
+  .nav { position:fixed; bottom:0; width:100%; background:#111; display:flex; justify-content:space-around; padding:10px 0; border-top:2px solid #FFD700 }
+  .nav-item { text-align:center; font-size:12px; cursor:pointer; color:#888 }
+  .nav-item.active { color:#FFD700 }
+  .solde { background:#222; padding:15px; border-radius:10px; text-align:center; margin:10px 0 }
+  .solde span { color:#00FF00; font-size:24px; font-weight:bold }
+  h2 { margin-bottom:10px; color:#FFD700 }
+</style>
+</head>
+<body>
 
-const supabaseUrl = 'https://uuzempozenvhgchkdsom.supabase.c'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1emVtcG96ZW52aGdjaGtkc29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDIxOTUsImV4cCI6MjA5OTI3ODE5NX0._TARYyMF_EevbpaGXY3xGnN0A7KQr4hRNA6Rd0pebuw'
-const supabase = createClient(supabaseUrl, supabaseKey)
+<div class="header">
+  <div>💰 BUREAU PARIS EFOOTBALL</div>
+  <div>
+    <span style="background:red; padding:8px; border-radius:50%; cursor:pointer" onclick="showPage('admin')">⚙️</span>
+    <span style="background:green; padding:8px; border-radius:50%; cursor:pointer; margin-left:5px" onclick="showPage('depot')">+</span>
+  </div>
+</div>
 
-const colors = {
-  bg: '#000000',
-  card: '#1a1a1a',
-  yellow: '#FFD700',
-  green: '#00FF00',
-  red: '#FF0000',
-  text: '#FFFFFF',
-  gray: '#333333'
+<div id="app"></div>
+
+<div class="nav">
+  <div class="nav-item" onclick="showPage('paris')"><div>📋</div><div>Paris</div></div>
+  <div class="nav-item" onclick="showPage('lancer')"><div>🎯</div><div>Lancer</div></div>
+  <div class="nav-item" onclick="showPage('joueurs')"><div>🟢</div><div>Joueurs</div></div>
+  <div class="nav-item active" onclick="showPage('profil')"><div>👤</div><div>Profil</div></div>
+  <div class="nav-item" onclick="showPage('notif')"><div>🔔</div><div>Notif</div></div>
+</div>
+
+<script>
+// 1. COLLE ICI TES INFOS SUPABASE
+const supabaseUrl = 'https://uuzempozenvhgchkdsom.supabase.co'
+const supabaseKey = 'COLLE-TA-CLE-ANON-ICI'
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+
+let currentUser = null;
+
+// 2. VERIFIER SI CONNECTE
+async function checkUser() {
+  const { data: { user } = await supabase.auth.getUser()
+  currentUser = user;
+  if(user) showPage('profil')
+  else showPage('login')
 }
 
-export default function App() {
-  const [page, setPage] = useState('auth') // auth, home
-  const [tab, setTab] = useState('paris') // paris, lancer, joueurs, profil, notif
-  const [showAdmin, setShowAdmin] = useState(false)
-  const [showDepot, setShowDepot] = useState(false)
-  const [form, setForm] = useState({nom:'', prenom:'', email:'', password:''})
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState({})
-  const [solde, setSolde] = useState(0)
-  const [paris, setParis] = useState([])
-  const [users, setUsers] = useState([])
-
-  useEffect(() => {
-    if(user) {
-      getProfile()
-      getUsers()
-      getParis()
-    }
-  }, [user])
-
-  const getProfile = async () => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    setProfile(data)
-    setSolde(data?.solde || 0)
-  }
-
-  const getUsers = async () => {
-    const { data } = await supabase.from('profiles').select('*')
-    setUsers(data || [])
-  }
-
-  const getParis = async () => {
-    const { data } = await supabase.from('paris').select('*').eq('statut', 'en_attente')
-    setParis(data || [])
-  }
-
-  // ===== AUTH =====
-  const sinscrire = async () => {
-    const { data } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: { data: {nom: form.nom, prenom: form.prenom} }
-    })
-    await supabase.from('profiles').insert({
-      id: data.user.id,
-      nom: form.nom,
-      prenom: form.prenom,
-      email: form.email,
-      solde: 0
-    })
-    setUser(data.user)
-    setPage('home')
-  }
-
-  const seConnecter = async () => {
-    const { data } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password
-    })
-    setUser(data.user)
-    setPage('home')
-  }
-
-  const deconnexion = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setPage('auth')
-  }
-
-  // ===== COMPONENTS =====
-  const Header = () => (
-    <div style={{background:'linear-gradient(90deg, #FFD700, #B8860B)', padding:'10px 15px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-      <div style={{display:'flex', alignItems:'center', gap:8}}>
-        <span>💰</span>
-        <h3 style={{color:'#000', margin:0}}>BUREAU PARIS EFOOTBALL</h3>
-      </div>
-      <div style={{display:'flex', gap:10}}>
-        <button onClick={()=>setShowAdmin(true)} style={{background:colors.red, border:'none', borderRadius:'50%', width:40, height:40}}>⚙️</button>
-        <button onClick={()=>setShowDepot(true)} style={{background:colors.green, border:'none', borderRadius:'50%', width:40, height:40, color:'#000', fontSize:24}}>+</button>
-      </div>
-    </div>
-  )
-
-  const Navbar = () => (
-    <div style={{position:'fixed', bottom:0, width:'100%', background:colors.card, borderTop:`2px solid ${colors.yellow}`, display:'flex', justifyContent:'space-around', padding:10}}>
-      {['paris','lancer','joueurs','profil','notif'].map(t => (
-        <button key={t} onClick={()=>setTab(t)} style={{background:'none', border:'none', color: tab===t? colors.yellow : colors.text, fontSize:12}}>
-          {t==='paris' && '📋 Paris'}
-          {t==='lancer' && '🎯 Lancer'}
-          {t==='joueurs' && '🟢 Joueurs'}
-          {t==='profil' && '👤 Profil'}
-          {t==='notif' && '🔔 Notif'}
-        </button>
-      ))}
-    </div>
-  )
-
-  // ===== PAGES =====
-  if(page === 'auth') return (
-    <div style={{background:colors.bg, minHeight:'100vh', display:'flex', justifyContent:'center', alignItems:'center', padding:20}}>
-      <div style={{background:colors.card, border:`2px solid ${colors.yellow}`, borderRadius:12, padding:20, width:'100%', maxWidth:400}}>
-        <h2 style={{color:colors.yellow}}>🔑 Connexion</h2>
-        <input placeholder="Gmail" style={inputStyle} onChange={e=>setForm({...form, email:e.target.value})} />
-        <input placeholder="Mot de passe" type="password" style={inputStyle} onChange={e=>setForm({...form, password:e.target.value})} />
-        <button onClick={seConnecter} style={yellowBtn}>SE CONNECTER</button>
-        <p style={{textAlign:'center', color:colors.text}}>Pas de compte? <span onClick={()=>alert('Formulaire inscription')} style={{color:colors.yellow}}>S'inscrire</span></p>
-      </div>
-    </div>
-  )
-
-  return (
-    <div style={{background:colors.bg, minHeight:'100vh', color:colors.text, paddingBottom:80}}>
-      <Header />
-
-      <div style={{padding:15}}>
-        {tab === 'paris' && (
-          <div style={cardStyle}>
-            <h3 style={{color:colors.yellow}}>📋 Paris en cours</h3>
-            {paris.length === 0? <p>Aucun pari en cours...</p> : paris.map(p => <p key={p.id}>Défi {p.montant}F</p>)}
-          </div>
-        )}
-
-        {tab === 'lancer' && (
-          <div style={cardStyle}>
-            <div style={{background:colors.gray, padding:10, borderRadius:8, textAlign:'center', marginBottom:15}}>
-              Solde: <span style={{color:colors.green}}>{solde} FCFA</span>
-            </div>
-            <h3 style={{color:colors.yellow}}>🎯 Lancer un Pari</h3>
-            <input placeholder="Mise en FCFA - Min 1000" type="number" style={inputStyle} />
-            <input placeholder="Numéro de la salle eFootball" style={inputStyle} />
-            <button style={yellowBtn}>LANCER LE PARI</button>
-          </div>
-        )}
-
-        {tab === 'joueurs' && (
-          <div style={cardStyle}>
-            <h3 style={{color:colors.yellow}}>🟢 Joueurs en Ligne</h3>
-            {users.map(u => <span key={u.id} style={{border:`1px solid ${colors.yellow}`, padding:'5px 15px', borderRadius:20, margin:5, display:'inline-block'}}>{u.prenom}</span>)}
-          </div>
-        )}
-
-        {tab === 'profil' && (
-          <div style={cardStyle}>
-            <h3 style={{color:colors.yellow}}>👤 Mon Profil</h3>
-            <p>Nom: <b>{profile.prenom} {profile.nom}</b></p>
-            <p>Gmail: <b>{profile.email}</b></p>
-            <div style={{background:colors.gray, padding:10, borderRadius:8, textAlign:'center', margin:'15px 0'}}>
-              Solde: <span style={{color:colors.green}}>{solde} FCFA</span>
-            </div>
-            <button onClick={deconnexion} style={{...yellowBtn, background:colors.red}}>DÉCONNEXION</button>
-          </div>
-        )}
-
-        {tab === 'notif' && (
-          <div style={cardStyle}>
-            <h3 style={{color:colors.yellow}}>🔔 Notifications</h3>
-            <p>Bienvenue!</p>
-          </div>
-        )}
-      </div>
-
-      {/* POPUP DEPOT */}
-      {showDepot && (
-        <div style={popupStyle}>
-          <div style={cardStyle}>
-            <h3 style={{color:colors.yellow}}>+ Dépôt</h3>
-            <p>Pour recharger ton compte :</p>
-            <a href="tel:0757652282" style={{color:'blue', fontSize:24}}>0757652282</a>
-            <div style={{display:'flex', gap:10, margin:'15px 0'}}>
-              <button style={{...yellowBtn, flex:1}}>🟠 Orange Money</button>
-              <button style={{...yellowBtn, background:'#00AEEF', flex:1}}>🔵 Wave</button>
-            </div>
-            <h4>📸 Envoyer la preuve</h4>
-            <input placeholder="Montant déposé en FCFA" type="number" style={inputStyle} />
-            <input placeholder="Ton numéro qui a envoyé" style={inputStyle} />
-            <button style={yellowBtn}>ENVOYER LA PREUVE</button>
-            <button onClick={()=>setShowDepot(false)} style={{marginTop:10}}>Fermer</button>
-          </div>
-        </div>
-      )}
-
-      {/* POPUP ADMIN */}
-      {showAdmin && (
-        <div style={popupStyle}>
-          <div style={cardStyle}>
-            <h3 style={{color:colors.yellow}}>⚙️ Panneau Admin</h3>
-            <p>Créditer un joueur :</p>
-            <input placeholder="Gmail du joueur" style={inputStyle} />
-            <input placeholder="Montant FCFA à ajouter" type="number" style={inputStyle} />
-            <button style={{...yellowBtn, background:colors.green}}>CRÉDITER</button>
-            <h4>Demandes en attente</h4>
-            <button onClick={()=>setShowAdmin(false)}>Fermer</button>
-          </div>
-        </div>
-      )}
-
-      <Navbar />
-    </div>
-  )
+// 3. INSCRIPTION
+async function signup() {
+  const nom = document.getElementById('nom').value
+  const email = document.getElementById('email').value
+  const password = document.getElementById('password').value
+  const { data, error } = await supabase.auth.signUp({email, password})
+  if(error) return alert(error.message)
+  await supabase.from('profiles').insert([{id:data.user.id, nom:nom, email:email, solde:0}])
+  alert('Compte créé ! Connecte toi')
+  showPage('login')
 }
 
-const inputStyle = {
-  width:'100%', padding:12, background:colors.gray, border:'none', borderRadius:8,
-  color:colors.text, margin:'10px 0', boxSizing:'border-box'
+// 4. CONNEXION
+async function login() {
+  const email = document.getElementById('email').value
+  const password = document.getElementById('password').value
+  const { error } = await supabase.auth.signInWithPassword({email, password})
+  if(error) return alert(error.message)
+  checkUser()
 }
-const yellowBtn = {
-  width:'100%', padding:14, background:colors.yellow, border:'none', borderRadius:8,
-  color:'#000', fontWeight:'bold', fontSize:16, margin:'10px 0'
+
+// 5. DECONNEXION
+async function logout() {
+  await supabase.auth.signOut()
+  checkUser()
 }
-const cardStyle = {
-  background:colors.card, border:`2px solid ${colors.yellow}`, borderRadius:12, padding:20
+
+// 6. AFFICHAGE DES PAGES
+function showPage(page) {
+  let html = '';
+  
+  if(page == 'login') {
+    html = `<div class="card"><h2>🔑 Connexion</h2>
+      <input id="email" placeholder="Ton Gmail">
+      <input id="password" type="password" placeholder="Mot de passe">
+      <button class="btn btn-yellow" onclick="login()">SE CONNECTER</button>
+      <p style="text-align:center; margin-top:10px">Pas de compte? <span style="color:#FFD700; cursor:pointer" onclick="showPage('signup')">S'inscrire</span></p>
+    </div>`
+  }
+  
+  if(page == 'signup') {
+    html = `<div class="card"><h2>📝 Inscription</h2>
+      <input id="nom" placeholder="Nom et Prénom">
+      <input id="email" placeholder="Gmail">
+      <input id="password" type="password" placeholder="Mot de passe">
+      <button class="btn btn-green" onclick="signup()">CRÉER MON COMPTE</button>
+      <p style="text-align:center; margin-top:10px"><span style="color:#FFD700; cursor:pointer" onclick="showPage('login')">Déjà un compte ?</span></p>
+    </div>`
+  }
+
+  if(page == 'profil') {
+    html = `<div class="card"><h2>👤 Mon Profil</h2>
+      <p><b>Nom:</b> Ezéchiel Yao</p>
+      <p><b>Gmail:</b> ${currentUser?.email}</p>
+      <div class="solde">Solde: <br><span>102 000 FCFA</span></div>
+      <button class="btn btn-red" onclick="logout()">DÉCONNEXION</button>
+    </div>`
+  }
+
+  if(page == 'paris') html = `<div class="card"><h2>📋 Paris en cours</h2><p>Aucun pari en cours pour le moment...</p></div>`
+  
+  if(page == 'lancer') html = `<div class="card"><h2>🎯 Lancer un Pari</h2>
+    <input placeholder="Mise en FCFA - Min 1000">
+    <input placeholder="Numéro de la salle eFootball">
+    <button class="btn btn-yellow">LANCER LE PARI</button>
+  </div>`
+  
+  if(page == 'joueurs') html = `<div class="card"><h2>🟢 Joueurs en Ligne</h2><p>Ezéchiel - En ligne</p></div>`
+  
+  if(page == 'notif') html = `<div class="card"><h2>🔔 Notifications</h2><p>Aucune notification</p></div>`
+  
+  if(page == 'admin') html = `<div class="card"><h2>⚙️ Panneau Admin</h2>
+    <p>Créditer un joueur :</p>
+    <input placeholder="Gmail du joueur">
+    <input placeholder="Montant FCFA à ajouter">
+    <button class="btn btn-green">CRÉDITER</button>
+  </div>`
+  
+  if(page == 'depot') html = `<div class="card"><h2>+ Dépôt</h2>
+    <p>Pour recharger ton compte envoie sur :</p>
+    <h3 style="color:#FFA500; text-align:center">0757652282</h3>
+    <button class="btn btn-yellow">🟠 Orange Money</button>
+    <button class="btn btn-blue">🔵 Wave</button>
+    <h3>📸 Envoyer la preuve</h3>
+    <input placeholder="Montant déposé en FCFA">
+    <input placeholder="Ton numéro qui a envoyé">
+    <button class="btn btn-yellow">ENVOYER LA PREUVE</button>
+  </div>`
+
+  document.getElementById('app').innerHTML = html;
+  
+  // Active le bon menu
+  document.querySelectorAll('.nav-item').forEach((el,i) => {
+    el.classList.remove('active')
+    const pages = ['paris','lancer','joueurs','profil','notif']
+    if(pages.indexOf(page) == i) el.classList.add('active')
+  })
 }
-const popupStyle = {
-  position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.8)',
-  display:'flex', justifyContent:'center', alignItems:'center', zIndex:100
-}
+
+checkUser()
+</script>
+</body>
+</html

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bureau Paris eFootball</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{background:#060606;color:white;font-family:Arial;margin:0;padding:0}
+header{background:linear-gradient(90deg,#FFD700,#000);padding:10px;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:16px}
+.btn-plus{background:#00ff00;color:#000;border:none;padding:8px 12px;border-radius:5px;font-weight:bold}
+.btn-admin{background:red;color:white;border:none;padding:8px 12px;border-radius:5px}
+.container{max-width:900px;margin:10px auto;padding:10px}
+.card{background:#111;border:1px solid #FFD700;border-radius:10px;padding:15px;margin-bottom:15px}
+h2{color:#FFD700;margin-top:0;font-size:18px}
+.btn{background:#FFD700;color:#000;border:none;padding:12px;border-radius:8px;font-weight:bold;width:100%;margin-top:8px;cursor:pointer}
+.btn-2{width:48%;display:inline-block}
+.btn-danger{background:#ff0000;color:white}
+input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #444;background:#222;color:white;box-sizing:border-box}
+.pari{background:#1a1a1a;border-left:4px solid #FFD700;padding:10px;margin:10px 0;border-radius:5px}
+.salle{background:#222;padding:8px;border-radius:5px;margin:5px 0}
+.contact{text-align:center;font-size:12px;color:#aaa}
+.en-ligne span{display:inline-block;width:8px;height:8px;background:#00ff00;border-radius:50%;margin-right:5px}
+.hidden{display:none!important}
+.solde-box{background:#222;padding:10px;border-radius:8px;margin:10px 0;text-align:center}
+.solde-box h3{color:#00ff00;font-size:22px;margin:5px 0}
+.tabs{display:flex;gap:5px;margin:10px 0}
+.tab{flex:1;padding:10px;background:#222;border:none;color:white;border-radius:5px}
+.tab.active{background:#FFD700;color:#000}
+</style>
+</head>
+<body>
+
+<header>
+<h1>🏆 BUREAU EFOOTBALL</h1>
+<button id="btnConnexion" class="btn-plus">Connexion Google</button>
+<button id="btnAdmin" class="btn-admin hidden">ADMIN</button>
+</header>
+
+<div class="container">
+<div id="soldeDiv" class="solde-box hidden">
+Solde: <h3 id="solde">0 FCFA</h3>
+</div>
+
+<div id="tabs" class="tabs hidden">
+<button class="tab active" onclick="showTab('paris')">Paris</button>
+<button class="tab" onclick="showTab('depot')">Dépôt</button>
+<button class="tab" onclick="showTab('retrait')">Retrait</button>
+<button class="tab" onclick="showTab('historique')">Historique</button>
+</div>
+
+<div id="tab-paris" class="tab-content">
+<div class="card">
+<h2>Créer un Pari</h2>
+<input id="montantPari" type="number" placeholder="Montant min 100F">
+<button class="btn" onclick="creerPari()">Lancer le Pari</button>
+<p style="font-size:12px;color:#aaa">Commission bureau: 10%</p>
+</div>
+
+<div class="card">
+<h2>Paris Disponibles</h2>
+<div id="listeParis">Chargement...</div>
+</div>
+</div>
+
+<div id="tab-depot" class="tab-content hidden">
+<div class="card">
+<h2>Faire un Dépôt</h2>
+<p>Envoie min 200F au : <b>0757652282</b></p>
+<input id="montantDepot" type="number" placeholder="Montant déposé">
+<input id="numeroDepot" placeholder="Ton numéro Wave/OM">
+<input id="preuveDepot" type="file" accept="image/*">
+<button class="btn" onclick="faireDepot()">J’ai envoyé</button>
+</div>
+</div>
+
+<div id="tab-retrait" class="tab-content hidden">
+<div class="card">
+<h2>Demande de Retrait</h2>
+<p>Min 100F</p>
+<input id="montantRetrait" type="number" placeholder="Montant à retirer">
+<input id="numeroRetrait" placeholder="Numéro Wave/OM">
+<button class="btn btn-danger" onclick="faireRetrait()">Demander Retrait</button>
+</div>
+</div>
+
+<div id="tab-historique" class="tab-content hidden">
+<div class="card">
+<h2>Historique</h2>
+<div id="listeHistorique">Chargement...</div>
+</div>
+</div>
+
+<div id="salleJeu" class="card hidden">
+<h2>🎮 Salle de Jeu</h2>
+<p>ID: <b id="idSalle"></b> | MDP: <b id="mdpSalle"></b></p>
+<p>Temps: <b id="timer">04:00</b></p>
+<input id="preuveMatch" type="file" accept="image/*">
+<button class="btn" onclick="envoyerPreuve()">Envoyer Preuve</button>
+<button id="btnPayerGagnant" class="btn btn-danger hidden" onclick="payerGagnant()">J’AI GAGNÉ - PAYER</button>
+</div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://uuzempozenvhgchkdsom.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1emVtcG96ZW52aGdjaGRzb20iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc2MTA1MDcwMywiZXhwIjoyMDc2NjI2NzAzfQ.5X_0yQ_0yQ_0yQ_0yQ_0yQ_0yQ_0yQ_0yQ_0yQ";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ADMIN_EMAIL = "ton-email-admin@gmail.com"; // CHANGE ICI
+const NUM_BUREAU = "0757652282"; // CHANGE ICI
+let user = null;
+let timerInterval = null;
+
+document.getElementById('btnConnexion').onclick = async () => {
+const { data, error } = await supabase.auth.signInWithOAuth({provider: 'google'});
+}
+
+supabase.auth.onAuthStateChange(async (event, session) => {
+if(session){
+user = session.user;
+document.getElementById('btnConnexion').innerText = user.email;
+document.getElementById('soldeDiv').classList.remove('hidden');
+document.getElementById('tabs').classList.remove('hidden');
+if(user.email === ADMIN_EMAIL) document.getElementById('btnAdmin').classList.remove('hidden');
+chargerSolde();
+chargerParis();
+}
+})
+
+async function chargerSolde(){
+let { data } = await supabase.from('profils').select('solde').eq('id', user.id).single();
+if(data) document.getElementById('solde').innerText = data.solde + " FCFA";
+}
+
+function showTab(tab){
+document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
+document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+document.getElementById('tab-'+tab).classList.remove('hidden');
+event.target.classList.add('active');
+}
+
+async function creerPari(){
+let montant = parseInt(document.getElementById('montantPari').value);
+if(montant < 100) return alert("Min 100F");
+let commission = montant * 0.1;
+let pot = montant * 2;
+let gain = pot - commission;
+await supabase.from('paris').insert({
+createur: user.id, createur_email: user.email, montant: montant, 
+pot: pot, commission: commission, gain_potentiel: gain, statut: 'en_attente'
+});
+alert("Pari créé!");
+chargerParis();
+}
+
+async function chargerParis(){
+let { data } = await supabase.from('paris').select('*').eq('statut','en_attente');
+let html = "";
+data.forEach(p => {
+html += `<div class="pari">
+<b>${p.montant} FCFA</b> vs?<br>
+Gain: ${p.gain_potentiel} FCFA<br>
+<button class="btn btn-2" onclick="accepterPari('${p.id}')">Accepter</button>
+</div>`;
+});
+document.getElementById('listeParis').innerHTML = html || "Aucun pari";
+}
+
+async function accepterPari(id){
+await supabase.from('paris').update({adversaire: user.id, adversaire_email: user.email, statut: 'accepte'}).eq('id',id);
+lancerSalle(id);
+}
+
+function lancerSalle(id){
+document.getElementById('salleJeu').classList.remove('hidden');
+document.getElementById('idSalle').innerText = Math.floor(Math.random()*9000)+1000;
+document.getElementById('mdpSalle').innerText = Math.floor(Math.random()*9000)+1000;
+let temps = 240;
+timerInterval = setInterval(()=>{
+temps--;
+let min = Math.floor(temps/60);
+let sec = temps%60;
+document.getElementById('timer').innerText = `0${min}:${sec<10?'0':''}${sec}`;
+if(temps<=0){clearInterval(timerInterval); alert("Temps écoulé. Remboursement.");}
+},1000);
+if(user.email === ADMIN_EMAIL) document.getElementById('btnPayerGagnant').classList.remove('hidden');
+}
+
+async function faireDepot(){
+let montant = document.getElementById('montantDepot').value;
+let numero = document.getElementById('numeroDepot').value;
+let file = document.getElementById('preuveDepot').files[0];
+let path = `preuves/${Date.now()}_${file.name}`;
+await supabase.storage.from('Capture').upload(path, file);
+await supabase.from('transactions').insert({
+user_id: user.id, type: 'depot', montant: montant, numero: numero, preuve: path, statut: 'en_attente'
+});
+alert("Dépôt envoyé. En attente de validation.");
+}
+
+async function faireRetrait(){
+let montant = document.getElementById('montantRetrait').value;
+let numero = document.getElementById('numeroRetrait').value;
+if(montant < 100) return alert("Min 100F");
+await supabase.from('transactions').insert({
+user_id: user.id, type: 'retrait', montant: montant, numero: numero, statut: 'en_attente'
+});
+alert("Demande de retrait envoyée.");
+}
+
+async function envoyerPreuve(){
+let file = document.getElementById('preuveMatch').files[0];
+let path = `matchs/${Date.now()}_${file.name}`;
+await supabase.storage.from('Capture').upload(path, file);
+alert("Preuve envoyée à l'admin");
+}
+
+function payerGagnant(){
+alert("Le gagnant a été payé + 10% commission prise");
+clearInterval(timerInterval);
+document.getElementById('salleJeu').classList.add('hidden');
+}
+
+</script>
+</body>
+</html>
